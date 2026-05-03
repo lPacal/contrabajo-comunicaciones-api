@@ -1,0 +1,13 @@
+❚❙❘ VERSION 0.1.0-Pre-Alpha
+⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
+├─• Implementación del motor de chat híbrido integrando REST API y WebSockets (STOMP).
+├─• Creación de endpoints para inicio de chat (`POST /iniciar`) aplicando principios de idempotencia.
+├─• Desarrollo de endpoint de mensajería (`POST /mensaje`) con enrutamiento en tiempo real por WS.
+├─• Implementación de seguridad Anti-IDOR calculando dinámicamente el receptor del mensaje en el backend.
+├─• Trazabilidad de lectura: Endpoints de actualización masiva para "recibidos" y "leídos" (Doble Check).
+├─• Endpoint de historial de mensajes (`GET /{idChat}/historial`) mapeando fechas de visualización.
+└─• Lógica de cierre de ciclo de vida (`PATCH /desactivar`) con validación estricta de roles (Solo Cliente).
+
+->>> Configurar paginación para el historial de mensajes de chat en futuras versiones.
+->>> Diseñar la arquitectura inicial para el microservicio de Reportería.
+->>> Implementar persistencia de notificaciones push o por correo si el usuario está offline.
