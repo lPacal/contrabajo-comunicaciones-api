@@ -1,5 +1,6 @@
 package com.contrabajo.comunicaciones_api.service;
 
+import com.contrabajo.comunicaciones_api.dto.ChatResponseDTO;
 import com.contrabajo.comunicaciones_api.dto.MensajeChatRequestDTO;
 import com.contrabajo.comunicaciones_api.dto.MensajeChatResponseDTO;
 import com.contrabajo.comunicaciones_api.model.ChatOferta;
@@ -12,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +24,7 @@ public class ChatService {
 
     private final ChatOfertaRepository chatOfertaRepository;
     private final MensajeChatRepository mensajeChatRepository;
+    private final ChatCryptoService chatCryptoService;
     
     // ¡La varita mágica de los WebSockets!
     private final SimpMessagingTemplate messagingTemplate; 
@@ -29,16 +33,66 @@ public class ChatService {
     // 1. INICIAR O RECUPERAR EL CHAT (El "Room")
     // ==========================================
     @Transactional
-    public ChatOferta iniciarChat(Integer idTrabajador, Integer idCliente, Integer idOfertaServicio) {
-        // Buscamos si ya existe, si no, lo creamos.
-        return chatOfertaRepository.findByIdTrabajadorAndIdClienteAndIdOfertaServicio(idTrabajador, idCliente, idOfertaServicio)
-                .orElseGet(() -> {
-                    ChatOferta nuevoChat = new ChatOferta();
-                    nuevoChat.setIdTrabajador(idTrabajador);
-                    nuevoChat.setIdCliente(idCliente);
-                    nuevoChat.setIdOfertaServicio(idOfertaServicio);
-                    return chatOfertaRepository.save(nuevoChat);
-                });
+    public ChatOferta iniciarChat(Integer idTrabajador, Integer idCliente, Integer idOfertaServicio,
+                                  String usernameTrabajador, String usernameCliente, String tituloServicio) {
+        // Buscamos si ya existe; si no, lo creamos.
+        var existente = chatOfertaRepository
+                .findByIdTrabajadorAndIdClienteAndIdOfertaServicio(idTrabajador, idCliente, idOfertaServicio);
+
+        if (existente.isPresent()) {
+            ChatOferta chat = existente.get();
+            // Retrocompatibilidad: si los campos de visualizacion estan vacios (chat antiguo),
+            // los actualizamos con los valores recibidos ahora para que el header funcione.
+            boolean actualizar = false;
+            if (usernameTrabajador != null && !usernameTrabajador.isBlank()
+                    && (chat.getUsernameTrabajador() == null || chat.getUsernameTrabajador().isBlank())) {
+                chat.setUsernameTrabajador(usernameTrabajador);
+                actualizar = true;
+            }
+            if (usernameCliente != null && !usernameCliente.isBlank()
+                    && (chat.getUsernameCliente() == null || chat.getUsernameCliente().isBlank())) {
+                chat.setUsernameCliente(usernameCliente);
+                actualizar = true;
+            }
+            if (tituloServicio != null && !tituloServicio.isBlank()
+                    && (chat.getTituloServicio() == null || chat.getTituloServicio().isBlank())) {
+                chat.setTituloServicio(tituloServicio);
+                actualizar = true;
+            }
+            return actualizar ? chatOfertaRepository.save(chat) : chat;
+        }
+
+        ChatOferta nuevoChat = new ChatOferta();
+        nuevoChat.setIdTrabajador(idTrabajador);
+        nuevoChat.setIdCliente(idCliente);
+        nuevoChat.setIdOfertaServicio(idOfertaServicio);
+        nuevoChat.setUsernameTrabajador(usernameTrabajador);
+        nuevoChat.setUsernameCliente(usernameCliente);
+        nuevoChat.setTituloServicio(tituloServicio);
+        ChatOferta chatGuardado = chatOfertaRepository.save(nuevoChat);
+
+        // Mensaje de sistema: avisar al trabajador que alguien esta interesado en su servicio
+        String nombreCliente = (usernameCliente != null && !usernameCliente.isBlank())
+                ? "@" + usernameCliente : "Un cliente";
+        String nombreServicio = (tituloServicio != null && !tituloServicio.isBlank())
+                ? "\"" + tituloServicio + "\"" : "tu servicio";
+        String contenidoSistema = nombreCliente + " está interesado en " + nombreServicio + ".";
+
+        MensajeChat msgSistema = new MensajeChat();
+        msgSistema.setContenido(chatCryptoService.encryptForStorage(contenidoSistema));
+        msgSistema.setIdEmisor(idCliente);    // el cliente es quien inicia el contacto
+        msgSistema.setIdReceptor(idTrabajador);
+        msgSistema.setTipo((byte) 1);         // tipo sistema
+        msgSistema.setChatOferta(chatGuardado);
+
+        MensajeChat msgGuardado = mensajeChatRepository.save(msgSistema);
+        MensajeChatResponseDTO responseDTO = convertirADto(msgGuardado);
+
+        // Emitir por WebSocket al trabajador para que aparezca en tiempo real
+        String destino = "/topic/chat/" + idTrabajador;
+        messagingTemplate.convertAndSend(destino, responseDTO);
+
+        return chatGuardado;
     }
 
     // ==========================================
@@ -69,7 +123,7 @@ public class ChatService {
 
         // A. Guardar en Base de Datos
         MensajeChat mensaje = new MensajeChat();
-        mensaje.setContenido(dto.getContenido());
+        mensaje.setContenido(chatCryptoService.encryptForStorage(dto.getContenido()));
         mensaje.setIdEmisor(idEmisor);
         mensaje.setIdReceptor(idReceptorCalculado); // Usamos el calculado, 100% seguro
         mensaje.setChatOferta(chat);
@@ -109,13 +163,72 @@ public class ChatService {
         dto.setIdChatOferta(mensaje.getChatOferta().getId());
         dto.setIdEmisor(mensaje.getIdEmisor());
         dto.setIdReceptor(mensaje.getIdReceptor());
-        dto.setContenido(mensaje.getContenido());
+        dto.setContenido(chatCryptoService.decryptForRead(mensaje.getContenido()));
         dto.setFechaEnvio(mensaje.getFechaEnvio());
         dto.setFechaRecibido(mensaje.getFechaRecibido());
         dto.setFechaLeido(mensaje.getFechaLeido());
+        dto.setTipo(mensaje.getTipo() != null ? mensaje.getTipo().intValue() : 0);
         return dto;
     }
 
+
+    // ==========================================
+    // 4. LISTAR CHATS DEL USUARIO AUTENTICADO
+    // ==========================================
+    @Transactional(readOnly = true)
+    public List<ChatResponseDTO> listarChatsUsuario(Integer idUsuario) {
+        List<ChatOferta> chats = chatOfertaRepository.findByIdTrabajadorOrIdCliente(idUsuario, idUsuario);
+        return chats.stream()
+                .map(chat -> toChatResponseDTO(chat, idUsuario))
+                .sorted((a, b) -> {
+                    if (a.getFechaUltimoMensaje() == null) return 1;
+                    if (b.getFechaUltimoMensaje() == null) return -1;
+                    return b.getFechaUltimoMensaje().compareTo(a.getFechaUltimoMensaje());
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ==========================================
+    // 5. VINCULAR CITA A UN CHAT
+    // ==========================================
+    @Transactional
+    public ChatResponseDTO vincularCita(Long idChat, Integer idCita, Integer idUsuario) {
+        ChatOferta chat = chatOfertaRepository.findById(idChat)
+                .orElseThrow(() -> new RuntimeException("Chat no encontrado."));
+        if (!chat.getIdCliente().equals(idUsuario) && !chat.getIdTrabajador().equals(idUsuario)) {
+            throw new RuntimeException("Acceso denegado: no participas en este chat.");
+        }
+        chat.setIdCita(idCita);
+        ChatOferta actualizado = chatOfertaRepository.save(chat);
+        return toChatResponseDTO(actualizado, idUsuario);
+    }
+
+    // Traductor ChatOferta -> ChatResponseDTO con preview y no leidos
+    private ChatResponseDTO toChatResponseDTO(ChatOferta chat, Integer idUsuario) {
+        ChatResponseDTO dto = new ChatResponseDTO();
+        dto.setId(chat.getId());
+        dto.setIdTrabajador(chat.getIdTrabajador());
+        dto.setIdCliente(chat.getIdCliente());
+        dto.setIdOfertaServicio(chat.getIdOfertaServicio());
+        dto.setIdCita(chat.getIdCita());
+        dto.setActivo(chat.getActivo());
+        dto.setFechaCreacion(chat.getFechaCreacion());
+        dto.setUsernameTrabajador(chat.getUsernameTrabajador());
+        dto.setUsernameCliente(chat.getUsernameCliente());
+        dto.setTituloServicio(chat.getTituloServicio());
+
+        mensajeChatRepository.findTopByChatOfertaIdOrderByFechaEnvioDesc(chat.getId())
+                .ifPresent(ultimo -> {
+                    dto.setUltimoMensaje(chatCryptoService.decryptForRead(ultimo.getContenido()));
+                    dto.setFechaUltimoMensaje(ultimo.getFechaEnvio());
+                });
+
+        long noLeidos = mensajeChatRepository
+                .countByChatOfertaIdAndIdReceptorAndFechaLeidoIsNull(chat.getId(), idUsuario);
+        dto.setMensajesNoLeidos(noLeidos);
+
+        return dto;
+    }
 
     @Transactional
     public void desactivarChatEspecifico(Integer idTrabajador, Integer idOfertaServicio, Integer idUsuarioAutenticado) {
@@ -151,8 +264,18 @@ public class ChatService {
             LocalDateTime ahora = LocalDateTime.now();
             mensajesPendientes.forEach(m -> m.setFechaRecibido(ahora));
             mensajeChatRepository.saveAll(mensajesPendientes);
-            
-            // Opcional: Avisar al emisor por WS que sus mensajes fueron entregados
+
+            // Avisar a cada emisor por WS que sus mensajes fueron entregados (tick gris)
+            mensajesPendientes.stream()
+                    .map(MensajeChat::getIdEmisor)
+                    .distinct()
+                    .forEach(idEmisor -> {
+                        Map<String, Object> evento = new HashMap<>();
+                        evento.put("tipo", "RECIBIDO");
+                        evento.put("idChat", idChatOferta);
+                        String destino = "/topic/chat/" + idEmisor;
+                        messagingTemplate.convertAndSend(destino, (Object) evento);
+                    });
         }
     }
 
@@ -166,12 +289,24 @@ public class ChatService {
             mensajesPendientes.forEach(m -> {
                 // Si lo leyó, lógicamente también lo recibió (por si la app falló antes)
                 if (m.getFechaRecibido() == null) {
-                    m.setFechaRecibido(ahora); 
+                    m.setFechaRecibido(ahora);
                 }
                 m.setFechaLeido(ahora);
             });
-            
+
             mensajeChatRepository.saveAll(mensajesPendientes);
+
+            // Avisar a cada emisor por WS que sus mensajes fueron leídos (tick azul)
+            mensajesPendientes.stream()
+                    .map(MensajeChat::getIdEmisor)
+                    .distinct()
+                    .forEach(idEmisor -> {
+                        Map<String, Object> evento = new HashMap<>();
+                        evento.put("tipo", "LEIDO");
+                        evento.put("idChat", idChatOferta);
+                        String destino = "/topic/chat/" + idEmisor;
+                        messagingTemplate.convertAndSend(destino, (Object) evento);
+                    });
         }
     }
 

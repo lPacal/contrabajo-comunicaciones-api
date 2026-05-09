@@ -21,9 +21,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Este es el endpoint de Handshake (ws://localhost:8083/ws-comunicaciones)
+        // Endpoint con SockJS — para futuros clientes web/navegador
         registry.addEndpoint("/ws-comunicaciones")
-                .setAllowedOriginPatterns("*") 
-                .withSockJS(); // Soporte para navegadores/clientes antiguos
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
+
+        // Endpoint nativo — para clientes Android/iOS (WebSocket puro, sin SockJS)
+        registry.addEndpoint("/ws-comunicaciones-native")
+                .setAllowedOriginPatterns("*");
     }
 }

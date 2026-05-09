@@ -13,4 +13,6 @@ public class MensajeChatResponseDTO {
     private LocalDateTime fechaEnvio;
     private LocalDateTime fechaRecibido;
     private LocalDateTime fechaLeido;
+    /** 0 = normal, 1 = sistema */
+    private Integer tipo;
 }

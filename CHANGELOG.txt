@@ -1,3 +1,26 @@
+❚❙❘ VERSION 0.3.0-Pre-Alpha
+⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
+├─• Nuevo endpoint WebSocket nativo `/ws-comunicaciones-native` (STOMP puro sin SockJS) para clientes Android/iOS junto al endpoint SockJS existente.
+├─• Nuevo endpoint GET `/api/chats` — devuelve el listado de chats del usuario autenticado como `ChatResponseDTO`.
+├─• Nuevo endpoint PATCH `/api/chats/{idChat}/vincular-cita` — asocia una cita creada en `servicios_api` al chat correspondiente.
+├─• Nuevos DTOs: `ChatResponseDTO` (listado de chats) y `VincularCitaDTO` (payload de vinculación de cita).
+├─• `ChatCryptoService`: cifrado AES/GCM con prefijo `ENCv1` para todos los mensajes nuevos; desencriptado transparente hacia el cliente con compatibilidad hacia históricos en claro.
+├─• `ChatService` refactorizado: cifrado integrado en el guardado de mensajes, retrocompatibilidad de metadata en chats pre-existentes, `listarChatsUsuario` y `vincularCita`.
+├─• Mensaje de sistema automático al iniciar un chat nuevo: notifica al trabajador vía WebSocket que un cliente está interesado en su servicio.
+├─• `ChatOferta`: 4 nuevos campos de visualización desnormalizados (`id_cita`, `username_trabajador`, `username_cliente`, `titulo_servicio`) para evitar joins cross-microservicio al listar chats.
+├─• `MensajeChat`: nuevo campo `tipo` (0 = normal, 1 = sistema) para diferenciar mensajes de usuario de los generados automáticamente por el backend.
+├─• `ChatRequestDTO`: extendido con `usernameTrabajador`, `usernameCliente` y `tituloServicio` para poblar metadata del chat al iniciarlo.
+├─• `MensajeChatRepository`: nuevas queries para marcado masivo de mensajes como recibidos y leídos.
+├─• `Reporte`: campos `resolucion_reporte` (VARCHAR 50) y `resuelto` (boolean, default false) para seguimiento de moderación.
+├─• [BD] `chat_oferta`: nuevas columnas `id_cita INT NULL`, `username_trabajador VARCHAR(100) NULL`, `username_cliente VARCHAR(100) NULL`, `titulo_servicio VARCHAR(200) NULL`.
+├─• [BD] `mensaje_chat`: nueva columna `tipo TINYINT NOT NULL DEFAULT 0`.
+└─• [BD] `reporte`: nuevas columnas `resolucion_reporte VARCHAR(50) NULL` y `resuelto BIT NOT NULL DEFAULT 0`.
+
+->>> Implementar paginación en GET /api/chats y en el historial de mensajes.
+->>> Conectar módulo de Reportes con endpoints de resolución para flujo de moderación completo.
+->>> Reemplazar cifrado backend por E2EE real cuando se definan claves por cliente.
+
+
 ❚❙❘ VERSION 0.2.0-Alpha
 ⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
 ├─• Implementación del módulo de Reportería bajo arquitectura BFF (Backend For Frontend).

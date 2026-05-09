@@ -1,8 +1,10 @@
 package com.contrabajo.comunicaciones_api.controller;
 
 import com.contrabajo.comunicaciones_api.dto.ChatRequestDTO;
+import com.contrabajo.comunicaciones_api.dto.ChatResponseDTO;
 import com.contrabajo.comunicaciones_api.dto.MensajeChatRequestDTO;
 import com.contrabajo.comunicaciones_api.dto.MensajeChatResponseDTO;
+import com.contrabajo.comunicaciones_api.dto.VincularCitaDTO;
 import com.contrabajo.comunicaciones_api.model.ChatOferta;
 import com.contrabajo.comunicaciones_api.service.ChatService;
 import com.contrabajo.comunicaciones_api.utils.JwtUtil;
@@ -27,7 +29,9 @@ public class ChatController {
     public ResponseEntity<?> iniciarChat(@Valid @RequestBody ChatRequestDTO dto) {
         try {
             Integer idCliente = obtenerIdDelToken();
-            ChatOferta chat = chatService.iniciarChat(dto.getIdTrabajador(), idCliente, dto.getIdOfertaServicio());
+            ChatOferta chat = chatService.iniciarChat(
+                    dto.getIdTrabajador(), idCliente, dto.getIdOfertaServicio(),
+                    dto.getUsernameTrabajador(), dto.getUsernameCliente(), dto.getTituloServicio());
             return ResponseEntity.ok(chat);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -99,6 +103,34 @@ public class ChatController {
             Integer idUsuario = obtenerIdDelToken();
             chatService.marcarMensajesComoLeidos(idChat, idUsuario);
             return ResponseEntity.ok("Mensajes marcados como leídos.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // GET /api/chats — lista de chats del usuario
+    // ==========================================
+    @GetMapping
+    public ResponseEntity<?> listarMisChats() {
+        try {
+            Integer idUsuario = obtenerIdDelToken();
+            List<ChatResponseDTO> chats = chatService.listarChatsUsuario(idUsuario);
+            return ResponseEntity.ok(chats);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // PATCH /api/chats/{idChat}/vincular-cita — vincula una cita al chat
+    // ==========================================
+    @PatchMapping("/{idChat}/vincular-cita")
+    public ResponseEntity<?> vincularCita(@PathVariable Long idChat, @RequestBody VincularCitaDTO dto) {
+        try {
+            Integer idUsuario = obtenerIdDelToken();
+            ChatResponseDTO resultado = chatService.vincularCita(idChat, dto.getIdCita(), idUsuario);
+            return ResponseEntity.ok(resultado);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

@@ -23,7 +23,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/ws-comunicaciones/**").permitAll() 
+                .requestMatchers("/ws-comunicaciones/**", "/ws-comunicaciones-native/**").permitAll()
                 .requestMatchers("/api/chats/**").authenticated()
                 .anyRequest().authenticated()
             )

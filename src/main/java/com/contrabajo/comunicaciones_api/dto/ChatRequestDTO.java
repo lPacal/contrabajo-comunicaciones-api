@@ -11,4 +11,9 @@ public class ChatRequestDTO {
 
     @NotNull(message = "El ID de la oferta de servicio es obligatorio.")
     private Integer idOfertaServicio;
+
+    // Opcionales — datos de visualizacion que el cliente envia para evitar joins posteriores
+    private String usernameTrabajador;
+    private String usernameCliente;
+    private String tituloServicio;
 }

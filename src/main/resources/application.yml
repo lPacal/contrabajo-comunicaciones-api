@@ -1,6 +1,11 @@
 spring:
   application:
     name: comunicaciones_api
+  datasource:
+    url: jdbc:sqlserver://localhost:58166;databaseName=MS_Comunicaciones;encrypt=true;trustServerCertificate=true;loginTimeout=30
+    username: admincontrabajo
+    password: Contrabajo123!
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
   jackson:
     serialization:
       fail-on-empty-beans: false

@@ -31,6 +31,13 @@ public class MensajeChat {
     @Column(name = "id_receptor", nullable = false)
     private Integer idReceptor;
 
+    /**
+     * Tipo de mensaje: 0 = normal (escrito por usuario), 1 = sistema (generado automaticamente).
+     * Los mensajes de sistema se renderizan como pastillas grises centradas en el frontend.
+     */
+    @Column(name = "tipo", nullable = false)
+    private Byte tipo = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_chat_oferta", nullable = false)
     private ChatOferta chatOferta;
