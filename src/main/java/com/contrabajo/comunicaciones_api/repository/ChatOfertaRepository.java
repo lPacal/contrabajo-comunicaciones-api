@@ -10,6 +10,10 @@ public interface ChatOfertaRepository extends JpaRepository<ChatOferta, Long> {
     
     // Busca si ya existe un chat exacto para esa oferta entre ese cliente y trabajador
     Optional<ChatOferta> findByIdTrabajadorAndIdClienteAndIdOfertaServicio(Integer idTrabajador, Integer idCliente, Integer idOfertaServicio);
+
+    Optional<ChatOferta> findTopByIdTrabajadorAndIdClienteAndIdOfertaServicioAndActivoTrueOrderByIdDesc(
+            Integer idTrabajador, Integer idCliente, Integer idOfertaServicio
+    );
     
     // Lista todos los chats donde el usuario participa (ya sea como cliente o trabajador)
     List<ChatOferta> findByIdTrabajadorOrIdCliente(Integer idTrabajador, Integer idCliente);

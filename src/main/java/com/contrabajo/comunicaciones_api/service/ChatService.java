@@ -35,9 +35,11 @@ public class ChatService {
     @Transactional
     public ChatOferta iniciarChat(Integer idTrabajador, Integer idCliente, Integer idOfertaServicio,
                                   String usernameTrabajador, String usernameCliente, String tituloServicio) {
-        // Buscamos si ya existe; si no, lo creamos.
+        // Reusar solo chat ACTIVO. Si no hay activo, se crea uno nuevo siempre.
         var existente = chatOfertaRepository
-                .findByIdTrabajadorAndIdClienteAndIdOfertaServicio(idTrabajador, idCliente, idOfertaServicio);
+                .findTopByIdTrabajadorAndIdClienteAndIdOfertaServicioAndActivoTrueOrderByIdDesc(
+                        idTrabajador, idCliente, idOfertaServicio
+                );
 
         if (existente.isPresent()) {
             ChatOferta chat = existente.get();
@@ -61,7 +63,11 @@ public class ChatService {
             }
             return actualizar ? chatOfertaRepository.save(chat) : chat;
         }
+        return crearNuevoChat(idTrabajador, idCliente, idOfertaServicio, usernameTrabajador, usernameCliente, tituloServicio);
+    }
 
+    private ChatOferta crearNuevoChat(Integer idTrabajador, Integer idCliente, Integer idOfertaServicio,
+                                      String usernameTrabajador, String usernameCliente, String tituloServicio) {
         ChatOferta nuevoChat = new ChatOferta();
         nuevoChat.setIdTrabajador(idTrabajador);
         nuevoChat.setIdCliente(idCliente);
@@ -126,6 +132,8 @@ public class ChatService {
         mensaje.setContenido(chatCryptoService.encryptForStorage(dto.getContenido()));
         mensaje.setIdEmisor(idEmisor);
         mensaje.setIdReceptor(idReceptorCalculado); // Usamos el calculado, 100% seguro
+        byte tipoMensaje = (dto.getTipo() != null && dto.getTipo() == 1) ? (byte) 1 : (byte) 0;
+        mensaje.setTipo(tipoMensaje);
         mensaje.setChatOferta(chat);
         
         MensajeChat guardado = mensajeChatRepository.save(mensaje);
@@ -235,24 +243,73 @@ public class ChatService {
         // Buscamos el chat que coincida con la Oferta y el Trabajador (sin asumir quién es el usuario aún)
         chatOfertaRepository.findByIdOfertaServicioAndIdTrabajador(idOfertaServicio, idTrabajador)
                 .ifPresentOrElse(chat -> {
-                    
-                    // 1. Validamos si el que intenta apagarlo es el Trabajador
-                    if (chat.getIdTrabajador().equals(idUsuarioAutenticado)) {
-                        throw new RuntimeException("Los trabajadores no tienen permiso para finalizar un chat. Solo el cliente puede realizar esta acción.");
-                    }
-                    
-                    // 2. Validamos si el que intenta apagarlo NO es el Cliente (Seguridad extra)
-                    if (!chat.getIdCliente().equals(idUsuarioAutenticado)) {
+
+                    // Permitir cierre por cualquier participante del chat (cliente o trabajador).
+                    if (!chat.getIdCliente().equals(idUsuarioAutenticado) && !chat.getIdTrabajador().equals(idUsuarioAutenticado)) {
                         throw new RuntimeException("No tienes permiso para modificar este chat.");
                     }
-                    
-                    // 3. Si es el Cliente, procedemos a desactivarlo
+
+                    if (!Boolean.TRUE.equals(chat.getActivo())) {
+                        return;
+                    }
+
+                    Integer idReceptor = chat.getIdCliente().equals(idUsuarioAutenticado)
+                            ? chat.getIdTrabajador()
+                            : chat.getIdCliente();
+
+                    MensajeChat msgSistema = new MensajeChat();
+                    msgSistema.setContenido(chatCryptoService.encryptForStorage("El chat fue finalizado."));
+                    msgSistema.setIdEmisor(idUsuarioAutenticado);
+                    msgSistema.setIdReceptor(idReceptor);
+                    msgSistema.setTipo((byte) 1);
+                    msgSistema.setChatOferta(chat);
+                    mensajeChatRepository.save(msgSistema);
+
                     chat.setActivo(false);
                     chatOfertaRepository.save(chat);
-                    
+
+                    emitirEventoChatCerrado(chat);
                 }, () -> {
                     throw new RuntimeException("No se encontró un chat activo para esta combinación de servicio.");
                 });
+    }
+
+    @Transactional
+    public void desactivarChatPorId(Long idChat, Integer idUsuarioAutenticado) {
+        ChatOferta chat = chatOfertaRepository.findById(idChat)
+                .orElseThrow(() -> new RuntimeException("Chat no encontrado."));
+
+        if (!chat.getIdCliente().equals(idUsuarioAutenticado) && !chat.getIdTrabajador().equals(idUsuarioAutenticado)) {
+            throw new RuntimeException("No tienes permiso para modificar este chat.");
+        }
+
+        if (!Boolean.TRUE.equals(chat.getActivo())) {
+            return;
+        }
+
+        Integer idReceptor = chat.getIdCliente().equals(idUsuarioAutenticado)
+                ? chat.getIdTrabajador()
+                : chat.getIdCliente();
+
+        MensajeChat msgSistema = new MensajeChat();
+        msgSistema.setContenido(chatCryptoService.encryptForStorage("El chat fue finalizado."));
+        msgSistema.setIdEmisor(idUsuarioAutenticado);
+        msgSistema.setIdReceptor(idReceptor);
+        msgSistema.setTipo((byte) 1);
+        msgSistema.setChatOferta(chat);
+        mensajeChatRepository.save(msgSistema);
+
+        chat.setActivo(false);
+        chatOfertaRepository.save(chat);
+        emitirEventoChatCerrado(chat);
+    }
+
+    private void emitirEventoChatCerrado(ChatOferta chat) {
+        Map<String, Object> evento = new HashMap<>();
+        evento.put("tipo", "CHAT_CERRADO");
+        evento.put("idChat", chat.getId());
+        messagingTemplate.convertAndSend("/topic/chat/" + chat.getIdCliente(), (Object) evento);
+        messagingTemplate.convertAndSend("/topic/chat/" + chat.getIdTrabajador(), (Object) evento);
     }
 
     @Transactional

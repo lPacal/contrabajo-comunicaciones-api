@@ -12,4 +12,8 @@ public class MensajeChatRequestDTO {
 
     @NotBlank(message = "El mensaje no puede estar vacío.")
     private String contenido;
+
+    // 0 = normal, 1 = sistema
+    // Opcional para retrocompatibilidad con clientes antiguos.
+    private Integer tipo;
 }

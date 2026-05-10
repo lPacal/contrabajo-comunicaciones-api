@@ -1,3 +1,21 @@
+❚❙❘ VERSION 0.4.0-Pre-Alpha
+⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
+├─• Nuevo endpoint `PATCH /api/chats/{idChat}/desactivar` — cierra un chat por su ID; accesible por cualquier participante (cliente o trabajador).
+├─• `desactivarChat` (por oferta+trabajador) relajado: ambos participantes pueden cerrar el chat; ya no es exclusivo del cliente.
+├─• Mensaje de sistema cifrado `"El chat fue finalizado."` insertado automáticamente al cerrar un chat por cualquier vía.
+├─• Evento WebSocket `CHAT_CERRADO` emitido a ambos participantes (`/topic/chat/{id}`) al desactivar un chat, para sincronizar la UI en tiempo real.
+├─• `iniciarChat` ahora reutiliza solo chats ACTIVOS; si el chat anterior fue cerrado, se crea uno nuevo en lugar de reabrir el cerrado.
+├─• `ChatOfertaRepository`: nueva query `findTopByIdTrabajadorAndIdClienteAndIdOfertaServicioAndActivoTrueOrderByIdDesc` para búsqueda del chat activo más reciente.
+├─• `crearNuevoChat` extraído como método privado para eliminar duplicación entre `iniciarChat` y futuros flujos de reapertura.
+├─• `MensajeChatRequestDTO`: campo `tipo` opcional añadido (0 = normal, 1 = sistema) para retrocompatibilidad con clientes anteriores.
+├─• `ChatOferta`: campo `idCita` eliminado del modelo JPA — la vinculación de cita se gestiona desde `servicios_api`.
+├─• `pom.xml`: versión explícita de Lombok (`1.18.44`) fijada en `annotationProcessorPaths` para evitar conflictos de compilación con el processor de Maven.
+└─• Helper privado `emitirEventoChatCerrado` centraliza la emisión del evento WebSocket de cierre para ambos participantes.
+
+->>> Implementar reapertura controlada de chat cerrado con nuevo hilo de mensajes.
+->>> Exponer GET /api/chats/{idChat} para obtener detalle de un chat por ID.
+
+
 ❚❙❘ VERSION 0.3.0-Pre-Alpha
 ⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
 ├─• Nuevo endpoint WebSocket nativo `/ws-comunicaciones-native` (STOMP puro sin SockJS) para clientes Android/iOS junto al endpoint SockJS existente.

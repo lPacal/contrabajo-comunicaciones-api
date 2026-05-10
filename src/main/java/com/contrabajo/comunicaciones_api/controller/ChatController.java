@@ -86,6 +86,17 @@ public class ChatController {
         }
     }
 
+    @PatchMapping("/{idChat}/desactivar")
+    public ResponseEntity<?> desactivarChatPorId(@PathVariable Long idChat) {
+        try {
+            Integer idUsuarioAutenticado = obtenerIdDelToken();
+            chatService.desactivarChatPorId(idChat, idUsuarioAutenticado);
+            return ResponseEntity.ok("El chat ha sido finalizado y ya no permite nuevos mensajes.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PatchMapping("/{idChat}/recibidos")
     public ResponseEntity<?> marcarComoRecibidos(@PathVariable Long idChat) {
         try {

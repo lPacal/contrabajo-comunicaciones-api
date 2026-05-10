@@ -31,10 +31,6 @@ public class ChatOferta {
     @Column(nullable = false)
     private Boolean activo = true;
 
-    // Vinculo opcional a la cita generada desde este chat (se rellena despues de crear la cita)
-    @Column(name = "id_cita")
-    private Integer idCita;
-
     // Datos de visualizacion desnormalizados — se guardan al crear el chat para evitar
     // joins cross-microservicio al listar chats.
     @Column(name = "username_trabajador", length = 100)
