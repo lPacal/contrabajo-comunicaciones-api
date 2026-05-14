@@ -1,3 +1,17 @@
+❚❙❘ VERSION 0.2.0-Alpha
+⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
+├─• Implementación del módulo de Reportería bajo arquitectura BFF (Backend For Frontend).
+├─• Creación de ReporteResponseDTO con 18 campos, garantizando compatibilidad 1:1 con el modelo local de Kotlin.
+├─• Desarrollo de DataSeeder inteligente con lógica de "Asegurar Existencia" para tipos de reporte base.
+├─• Integración de API Composition mediante RestTemplate para enriquecer reportes con datos de MS_Usuarios y MS_Servicios.
+├─• Implementación de Propagación de JWT (Bearer forward) para autorizar peticiones entre microservicios.
+├─• Motor de búsqueda y filtrado dinámico en memoria cruzando datos de múltiples fuentes externas.
+└─• Endpoints de gestión para moderadores (GET /listar, PATCH /revision) respetando estrictamente el modelo de BD original.
+
+->>> Implementar el disparo automático de baneo en el MS_Usuarios al resolver un reporte con medida disciplinaria.
+->>> Soporte para adjuntar evidencia multimedia (fotos/archivos) en el proceso de denuncia.
+->>> Crear sistema de notificaciones automáticas para informar al emisor sobre el estado de su reporte.
+
 ❚❙❘ VERSION 0.1.0-Pre-Alpha
 ⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
 ├─• Implementación del motor de chat híbrido integrando REST API y WebSockets (STOMP).

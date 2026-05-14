@@ -19,6 +19,12 @@ public class Reporte {
     @Column(name = "descripcion_reporte", nullable = false, length = 500)
     private String descripcion;
 
+    @Column(name = "resolucion_reporte", length = 50)
+    private String resolucionReporte; // <--- CAMBIO AQUÍ
+
+    @Column(nullable = false)
+    private Boolean resuelto = false; // <--- CAMBIO AQUÍ
+
     @Column(name = "id_usuario_emisor", nullable = false)
     private Integer idUsuarioEmisor;
 
@@ -27,5 +33,5 @@ public class Reporte {
     private TipoReporte tipoReporte;
 
     @Column(name = "entidad_id")
-    private Long entidadId; // ID de la oferta o cita reportada
+    private Long entidadId; 
 }

@@ -25,6 +25,9 @@ public class ChatOferta {
     @Column(name = "id_oferta_servicio", nullable = false)
     private Integer idOfertaServicio;
 
+    @Column(name = "id_cita")
+    private Integer idCita;
+
     @Column(nullable = false)
     private Boolean activo = true;
 }
