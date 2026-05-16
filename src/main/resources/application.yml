@@ -1,3 +1,6 @@
+server:
+  port: 8083
+
 spring:
   application:
     name: comunicaciones_api
@@ -17,9 +20,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.SQLServerDialect
   config:
-    import: "optional:configserver:http://localhost:8888"
-  cloud:
-    config:
-      fail-fast: true
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
 jwt:
   secret: EstaEsUnaClaveSecretaMuyLargaParaQueNadieLaAdivine123456789

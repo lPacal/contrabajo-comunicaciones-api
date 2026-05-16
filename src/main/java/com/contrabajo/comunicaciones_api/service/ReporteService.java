@@ -13,9 +13,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -97,17 +99,149 @@ public class ReporteService {
 
     @Transactional
     public ReporteResponseDTO resolverReporte(Long idReporte, String medida) {
+        String medidaNormalizada = medida == null ? "" : medida.trim();
+        Integer idUsuarioHint = extraerIdUsuarioHint(medidaNormalizada);
+        String medidaBase = limpiarMedida(medidaNormalizada);
+
         Reporte reporte = reporteRepository.findById(idReporte)
                 .orElseThrow(() -> new RuntimeException("Reporte no encontrado"));
 
         if (reporte.getResuelto()) {
-            throw new RuntimeException("El reporte ya está resuelto.");
+            return convertirADTO(reporte);
         }
 
-        reporte.setResolucionReporte(medida);
+        HttpEntity<String> entity = crearAuthHeader();
+        try {
+            if ("IGNORAR_REPORTE".equalsIgnoreCase(medidaBase)) {
+                // No aplica acción externa, solo se marca como resuelto.
+            } else if ("DESACTIVAR_SERVICIO".equalsIgnoreCase(medidaBase)) {
+                Long idOfertaServicio = validarOfertaAsociada(reporte);
+                try {
+                    restTemplate.exchange(
+                            MS_SERVICIOS_URL + idOfertaServicio + "/disponibilidad/desactivar",
+                            HttpMethod.PATCH,
+                            entity,
+                            Object.class
+                    );
+                } catch (HttpStatusCodeException e) {
+                    // Solo ignoramos 404: el servicio ya no existe (eliminado), se trata como estado final.
+                    // Un 400 es un fallo real (ej: oferta ya borrada, rol insuficiente) y debe propagarse.
+                    if (e.getStatusCode().value() != 404) {
+                        throw e;
+                    }
+                }
+            } else if ("ELIMINAR_SERVICIO".equalsIgnoreCase(medidaBase)) {
+                Long idOfertaServicio = validarOfertaAsociada(reporte);
+                restTemplate.exchange(
+                        MS_SERVICIOS_URL + idOfertaServicio,
+                        HttpMethod.DELETE,
+                        entity,
+                        Object.class
+                );
+            } else if (medidaBase.toUpperCase().startsWith("SUSPENDER_USUARIO_HASTA")) {
+                Integer idUsuarioReportado = resolverTrabajadorReportado(reporte, entity, idUsuarioHint);
+                // Formato: SUSPENDER_USUARIO_HASTA:{fechaFin}
+                //      o:  SUSPENDER_USUARIO_HASTA:{fechaInicio}/{fechaFin}
+                String parametro = extraerParametro(medidaBase);
+                String fechaFin;
+                String fechaInicio = null;
+                if (parametro.contains("/")) {
+                    String[] partes = parametro.split("/", 2);
+                    fechaInicio = partes[0].trim();
+                    fechaFin = partes[1].trim();
+                } else {
+                    fechaFin = parametro;
+                }
+                Map<String, Object> bodySuspension = new HashMap<>();
+                bodySuspension.put("accion", "SUSPENDER_USUARIO_HASTA");
+                bodySuspension.put("fechaFin", fechaFin);
+                bodySuspension.put("motivo", "Reporte #" + reporte.getId());
+                if (fechaInicio != null) bodySuspension.put("fechaInicio", fechaInicio);
+                restTemplate.exchange(
+                        MS_USUARIOS_URL + idUsuarioReportado + "/moderacion",
+                        HttpMethod.PATCH,
+                        new HttpEntity<>(bodySuspension, entity.getHeaders()),
+                        Object.class
+                );
+            } else if ("BANEAR_USUARIO".equalsIgnoreCase(medidaBase)) {
+                Integer idUsuarioReportado = resolverTrabajadorReportado(reporte, entity, idUsuarioHint);
+                restTemplate.exchange(
+                        MS_USUARIOS_URL + idUsuarioReportado + "/moderacion",
+                        HttpMethod.PATCH,
+                        new HttpEntity<>(Map.of(
+                                "accion", "BANEAR_USUARIO",
+                                "motivo", "Reporte #" + reporte.getId()
+                        ), entity.getHeaders()),
+                        Object.class
+                );
+            } else {
+                throw new RuntimeException("Medida de moderación no soportada: " + medidaBase);
+            }
+        } catch (HttpStatusCodeException e) {
+            String detalle = e.getResponseBodyAsString();
+            throw new RuntimeException("No se pudo aplicar la medida (" + e.getStatusCode().value() + "): " + detalle);
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo aplicar la medida: " + e.getMessage());
+        }
+
+        reporte.setResolucionReporte(medidaBase);
         reporte.setResuelto(true);
 
         return convertirADTO(reporteRepository.save(reporte));
+    }
+
+    private Long validarOfertaAsociada(Reporte reporte) {
+        Long idOfertaServicio = reporte.getEntidadId();
+        if (idOfertaServicio == null) {
+            throw new RuntimeException("El reporte no tiene servicio asociado para aplicar moderación.");
+        }
+        return idOfertaServicio;
+    }
+
+    private Integer resolverTrabajadorReportado(Reporte reporte, HttpEntity<String> entity, Integer idUsuarioHint) {
+        if (idUsuarioHint != null && idUsuarioHint > 0) {
+            return idUsuarioHint;
+        }
+        Long idOfertaServicio = validarOfertaAsociada(reporte);
+        ResponseEntity<Map> responseOferta = restTemplate.exchange(
+                MS_SERVICIOS_URL + idOfertaServicio,
+                HttpMethod.GET,
+                entity,
+                Map.class
+        );
+        if (responseOferta.getBody() == null || responseOferta.getBody().get("idTrabajador") == null) {
+            throw new RuntimeException("No se pudo resolver el trabajador reportado.");
+        }
+        Object idTrabajador = responseOferta.getBody().get("idTrabajador");
+        if (idTrabajador instanceof Integer value) return value;
+        if (idTrabajador instanceof Number value) return value.intValue();
+        throw new RuntimeException("idTrabajador inválido en oferta reportada.");
+    }
+
+    private String extraerParametro(String medida) {
+        int idx = medida.indexOf(':');
+        if (idx < 0 || idx + 1 >= medida.length()) {
+            throw new RuntimeException("Falta la fecha fin de suspensión en la medida.");
+        }
+        return medida.substring(idx + 1).trim();
+    }
+
+    private Integer extraerIdUsuarioHint(String medida) {
+        int idx = medida.toUpperCase().indexOf("|USR:");
+        if (idx < 0) return null;
+        String valor = medida.substring(idx + 5).trim();
+        if (valor.isBlank()) return null;
+        try {
+            return Integer.parseInt(valor);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String limpiarMedida(String medida) {
+        int idx = medida.toUpperCase().indexOf("|USR:");
+        if (idx < 0) return medida;
+        return medida.substring(0, idx).trim();
     }
 
     // HELPER PARA LLEVARSE EL TOKEN DEL USUARIO A LOS OTROS MS
