@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: comunicaciones_api
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      enabled: true
+      fail-fast: true
   datasource:
     url: jdbc:sqlserver://localhost:58166;databaseName=MS_Comunicaciones;encrypt=true;trustServerCertificate=true;loginTimeout=30
     username: admincontrabajo
@@ -19,7 +25,11 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.SQLServerDialect
-  config:
-    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+
 jwt:
   secret: EstaEsUnaClaveSecretaMuyLargaParaQueNadieLaAdivine123456789
+
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
