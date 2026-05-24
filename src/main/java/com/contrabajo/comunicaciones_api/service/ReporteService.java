@@ -5,6 +5,8 @@ import com.contrabajo.comunicaciones_api.model.*;
 import com.contrabajo.comunicaciones_api.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -29,10 +31,14 @@ public class ReporteService {
     private final ReporteRepository reporteRepository;
     private final TipoReporteRepository tipoReporteRepository;
     private final RestTemplate restTemplate;
+    
+    @Value("${MS_USUARIOS_URL:http://localhost:8081}/api/usuarios/")
+    private String MS_USUARIOS_URL;
 
-    private final String MS_USUARIOS_URL = "http://localhost:8081/api/usuarios/";
-    private final String MS_SERVICIOS_URL = "http://localhost:8082/api/ofertas/";
+    @Value("${MS_SERVICIOS_URL:http://localhost:8082}/api/ofertas/")
+    private String MS_SERVICIOS_URL;
 
+    
     public List<TipoReporte> obtenerTiposReporte() {
         return tipoReporteRepository.findAll();
     }

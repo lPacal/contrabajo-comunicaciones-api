@@ -1,4 +1,22 @@
-VERSION 0.5.1-Pre-Alpha
+❚❙❘ VERSION 0.5.4-Pre-Alpha
+------------------------
+├─• Se agregaron las variables de ambiente del deploy
+└─• Se realizaron los archivos necesario para que se pueda dockerizar
+
+❚❙❘ VERSION 0.5.3-Pre-Alpha
+------------------------
+├─• Documentacion Swagger/OpenAPI para chats y reportes con tags, operaciones y respuestas.
+├─• DTOs de comunicaciones-api anotados con @Schema en español.
+├─• OpenApiConfig agregado para homogeneizar la documentacion con usuarios-api.
+└─• application.yml refactorizado para seguir la misma estructura base del resto de microservicios.
+
+❚❙❘ VERSION 0.5.2-Pre-Alpha
+------------------------
+├─• Generación y ajuste de tests unitarios para controllers y services de comunicaciones-api.
+├─• Alineación de los tests con la versión actual de ChatService, ChatController y ReporteService.
+└─• Validación completa de la suite del módulo con mvn test.
+
+❚❙❘ VERSION 0.5.1-Pre-Alpha
 ------------------------
 - Resolucion avanzada de reportes conectada a medidas reales de moderacion.
 - Normalizacion de flujo para ignorar reporte, desactivar servicio y escalar sancion de usuario.

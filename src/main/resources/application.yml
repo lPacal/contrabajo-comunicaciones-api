@@ -1,34 +1,16 @@
-server:
-  port: 8083
-
 spring:
   application:
-    name: comunicaciones_api
+    name: comunicaciones_api # Este nombre es el "ID" para buscar en Git
+  
   config:
     import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  
   cloud:
     config:
       enabled: true
-      fail-fast: true
-  datasource:
-    url: jdbc:sqlserver://localhost:58166;databaseName=MS_Comunicaciones;encrypt=true;trustServerCertificate=true;loginTimeout=30
-    username: admincontrabajo
-    password: Contrabajo123!
-    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-  jackson:
-    serialization:
-      fail-on-empty-beans: false
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.SQLServerDialect
+      fail-fast: true # Si el Config Server no responde, la API no arranca (evita errores raros)
 
-jwt:
-  secret: EstaEsUnaClaveSecretaMuyLargaParaQueNadieLaAdivine123456789
-
+# Configuración para ordenar Swagger alfabéticamente
 springdoc:
   swagger-ui:
     tags-sorter: alpha
