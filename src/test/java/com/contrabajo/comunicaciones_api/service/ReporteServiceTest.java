@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -46,6 +47,10 @@ class ReporteServiceTest {
 
     @BeforeEach
     void setUp() {
+
+        ReflectionTestUtils.setField(reporteService, "MS_USUARIOS_URL", "http://localhost:8081/api/usuarios/");
+        ReflectionTestUtils.setField(reporteService, "MS_SERVICIOS_URL", "http://localhost:8082/api/ofertas/");
+
         tipoReporte = new TipoReporte();
         tipoReporte.setId(1);
         tipoReporte.setNombre("Conducta inapropiada");
