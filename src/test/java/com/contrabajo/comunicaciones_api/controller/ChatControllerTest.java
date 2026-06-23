@@ -205,6 +205,32 @@ class ChatControllerTest {
     }
 
     @Test
+    void testMarcarComoRecibidos_Exitoso() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid_token");
+        when(jwtUtil.extractId("valid_token")).thenReturn(1);
+
+        mockMvc.perform(patch("/api/chats/{idChat}/recibidos", 10)
+                .header("Authorization", "Bearer valid_token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Mensajes marcados como recibidos."));
+
+        verify(chatService).marcarMensajesComoRecibidos(10L, 1);
+    }
+
+    @Test
+    void testMarcarComoLeidos_Exitoso() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid_token");
+        when(jwtUtil.extractId("valid_token")).thenReturn(1);
+
+        mockMvc.perform(patch("/api/chats/{idChat}/leidos", 10)
+                .header("Authorization", "Bearer valid_token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Mensajes marcados como leídos."));
+
+        verify(chatService).marcarMensajesComoLeidos(10L, 1);
+    }
+
+    @Test
     void testTokenInvalidoDevuelveBadRequest() throws Exception {
         when(request.getHeader("Authorization")).thenReturn(null);
 

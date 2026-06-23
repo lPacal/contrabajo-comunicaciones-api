@@ -367,4 +367,12 @@ public class ChatService {
         }
     }
 
+    public void notificarSesionExpirada(Integer idUsuario) {
+        Map<String, Object> evento = new HashMap<>();
+        evento.put("tipo", "SESION_EXPIRADA");
+        
+        // Le enviamos el evento directo al canal del usuario afectado
+        messagingTemplate.convertAndSend("/topic/chat/" + idUsuario, (Object) evento);
+    }
+
 }

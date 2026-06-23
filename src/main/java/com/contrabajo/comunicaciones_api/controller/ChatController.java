@@ -22,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @Tag(name = "1. Chats", description = "Endpoints para iniciar chats, enviar mensajes y sincronizar estados de lectura")
@@ -268,6 +269,22 @@ public class ChatController {
             Integer idUsuario = obtenerIdDelToken();
             ChatResponseDTO resultado = chatService.vincularCita(idChat, dto.getIdCita(), idUsuario);
             return ResponseEntity.ok(resultado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/notificar-ingreso-nuevo")
+    @Operation(summary = "Avisa por WebSocket a los dispositivos viejos que cierren sesión")
+    public ResponseEntity<?> notificarIngresoNuevo() {
+        try {
+            // Reutilizamos el método que ya extrae el ID del token JWT
+            Integer idUsuario = obtenerIdDelToken(); 
+            
+            // Invocamos el método del servicio que envía el STOMP al WebSocket
+            chatService.notificarSesionExpirada(idUsuario);
+            
+            return ResponseEntity.ok().body(Map.of("mensaje", "Notificación de desalojo enviada"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

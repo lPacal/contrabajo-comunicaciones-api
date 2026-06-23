@@ -181,6 +181,55 @@ class ReporteServiceTest {
     }
 
     @Test
+    void testResolverReporte_EliminarServicio() {
+        when(reporteRepository.findById(10L)).thenReturn(Optional.of(reportePendiente));
+        when(reporteRepository.save(any(Reporte.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubRestTemplateDefaults();
+
+        ReporteResponseDTO resultado = reporteService.resolverReporte(10L, "ELIMINAR_SERVICIO");
+
+        assertEquals("RESUELTO", resultado.getEstadoRevision());
+        verify(restTemplate).exchange(contains("/api/ofertas/100"), eq(HttpMethod.DELETE), any(), eq(Object.class));
+    }
+
+    @Test
+    void testResolverReporte_SuspenderUsuarioHasta_ConHint() {
+        when(reporteRepository.findById(10L)).thenReturn(Optional.of(reportePendiente));
+        when(reporteRepository.save(any(Reporte.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubRestTemplateDefaults();
+
+        ReporteResponseDTO resultado = reporteService.resolverReporte(10L, "SUSPENDER_USUARIO_HASTA:2026-12-31|USR:8");
+
+        assertEquals("RESUELTO", resultado.getEstadoRevision());
+        verify(restTemplate).exchange(contains("/usuarios/8/moderacion"), eq(HttpMethod.PATCH), any(), eq(Object.class));
+    }
+
+    @Test
+    void testResolverReporte_BanearUsuario() {
+        when(reporteRepository.findById(10L)).thenReturn(Optional.of(reportePendiente));
+        when(reporteRepository.save(any(Reporte.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubRestTemplateDefaults();
+
+        ReporteResponseDTO resultado = reporteService.resolverReporte(10L, "BANEAR_USUARIO");
+
+        assertEquals("RESUELTO", resultado.getEstadoRevision());
+        verify(restTemplate).exchange(contains("/usuarios/8/moderacion"), eq(HttpMethod.PATCH), any(), eq(Object.class));
+    }
+
+    @Test
+    void testObtenerDetalle_Enriquecido() {
+        when(reporteRepository.findById(10L)).thenReturn(Optional.of(reportePendiente));
+        stubRestTemplateDefaults();
+
+        ReporteResponseDTO resultado = reporteService.obtenerDetalle(10L);
+
+        assertEquals("usuario_mock", resultado.getEmisorUsername());
+        assertEquals("Servicio mock", resultado.getServicioTitulo());
+        assertEquals("usuario_mock", resultado.getUsuarioReportadoUsername());
+        assertEquals(8, resultado.getIdUsuarioReportado());
+    }
+
+    @Test
     void testResolverReporte_YaResueltoRetornaDto() {
         reportePendiente.setResuelto(true);
         reportePendiente.setResolucionReporte("IGNORAR_REPORTE");

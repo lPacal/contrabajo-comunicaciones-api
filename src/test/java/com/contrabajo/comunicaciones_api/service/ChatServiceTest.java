@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -95,7 +96,10 @@ class ChatServiceTest {
         assertEquals("cliente_1", resultado.getUsernameCliente());
         assertEquals("Servicio de prueba", resultado.getTituloServicio());
         verify(mensajeChatRepository, times(1)).save(any(MensajeChat.class));
-        verify(messagingTemplate, times(1)).convertAndSend(eq("/topic/chat/2"), any(MensajeChatResponseDTO.class));
+        verify(messagingTemplate, times(1)).convertAndSend(
+            (String) eq("/topic/chat/2"), 
+            (Object) any(MensajeChatResponseDTO.class)
+        );
     }
 
     @Test
@@ -118,7 +122,10 @@ class ChatServiceTest {
         assertEquals(2, resultado.getIdReceptor());
         assertEquals(mensajeDTO.getContenido(), resultado.getContenido());
         assertEquals(0, resultado.getTipo());
-        verify(messagingTemplate, times(1)).convertAndSend(eq("/topic/chat/2"), any(MensajeChatResponseDTO.class));
+       verify(messagingTemplate, times(1)).convertAndSend(
+            (String) eq("/topic/chat/2"), 
+            (Object) any(MensajeChatResponseDTO.class)
+        );
     }
 
     @Test
@@ -218,6 +225,48 @@ class ChatServiceTest {
         assertFalse(chatActivo.getActivo());
         verify(chatOfertaRepository, times(1)).save(chatActivo);
         verify(mensajeChatRepository, times(1)).save(any(MensajeChat.class));
+    }
+
+    @Test
+    void testDesactivarChatEspecifico_Exitoso() {
+        when(chatOfertaRepository.findByIdOfertaServicioAndIdTrabajador(50, 2)).thenReturn(Optional.of(chatActivo));
+        when(mensajeChatRepository.save(any(MensajeChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(chatOfertaRepository.save(any(ChatOferta.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        chatService.desactivarChatEspecifico(2, 50, 1);
+
+        assertFalse(chatActivo.getActivo());
+        verify(mensajeChatRepository, times(1)).save(any(MensajeChat.class));
+        verify(chatOfertaRepository, times(1)).save(chatActivo);
+        verify(messagingTemplate).convertAndSend(
+            (String) eq("/topic/chat/1"), 
+            (Object) org.mockito.ArgumentMatchers.<String, Object>anyMap()
+        );
+        verify(messagingTemplate).convertAndSend(
+            (String) eq("/topic/chat/2"), 
+            (Object) org.mockito.ArgumentMatchers.<String, Object>anyMap()
+        );
+    }
+
+    @Test
+    void testDesactivarChatEspecifico_NoChatEncontrado() {
+        when(chatOfertaRepository.findByIdOfertaServicioAndIdTrabajador(50, 2)).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> chatService.desactivarChatEspecifico(2, 50, 1));
+
+        assertEquals("No se encontró un chat activo para esta combinación de servicio.", exception.getMessage());
+        verify(chatOfertaRepository, never()).save(any());
+    }
+
+    @Test
+    void testNotificarSesionExpirada_EnviaEvento() {
+        chatService.notificarSesionExpirada(1);
+
+        verify(messagingTemplate).convertAndSend(
+            (String) eq("/topic/chat/1"), 
+            (Object) org.mockito.ArgumentMatchers.<String, Object>anyMap()
+        );
     }
 
     @Test
